@@ -103,7 +103,7 @@ function handleRequest(req, res) {
     res.end(generateThanksPage());
     setTimeout(function(){
       wifi.stopAP();
-      start_wifi(obj.s, obj.p);
+      start_wifi_and_register(obj.s, obj.p, obj.code);
       digitalWrite(D2, false)
     }, 3000)
   }else{
@@ -157,7 +157,7 @@ function blink(times){
     }
   },300)
 }
-function start_wifi(ssid, password){
+function start_wifi_and_register(ssid, password, code){
   check_wifi()
   wifi.connect(ssid, { password: password }, error => {
     if(error){
@@ -167,6 +167,7 @@ function start_wifi(ssid, password){
       //ok, save variables
       f.write(0, ssid);
       f.write(1, password);
+      //send message in GET to server to register node
     }
     blink(5)
     //mqtt.connect()

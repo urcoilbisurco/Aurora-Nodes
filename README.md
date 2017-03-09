@@ -14,12 +14,9 @@ create an "_env.js" file with inside:
 
 ```javascript
 var env={
-  mqtt_server:"your mtqq server"
-  name: "Name of Wifi",
-  password: "Wifi password",
   mqtt:{
     ip:"IP of mqtt broker",
-    options:{//optionals
+    options:{//not required
       username:""
       password:"",
       port:""
