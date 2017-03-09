@@ -15,7 +15,7 @@ function html_tmpl(){
           color: #666;
           max-width: 350px;
           margin: 0 auto;
-          padding-top: 64px;
+          padding: 64px 0 0 0;
         }
         form{
           display: flex;
@@ -23,39 +23,27 @@ function html_tmpl(){
         }
         label{
           font-size: 19px;
-          margin-top: 16px;
-          margin-bottom: 8px;
+          margin-top: 16px 0 8px 0;
         }
         select{
-          background: white;
-          border: 0;
-          height: 48px;
           color: #666;
-          font-size: 16px;
-          padding-left: 6px;
-          border-radius: 5px;
         }
-        input[type="text"], input[type="password"]{
+        input, select{
+          border-radius: 5px;
           background: white;
           border: 0;
           height: 48px;
-          font-size: 19px;
+          font-size: 16px;
           padding-left:8px;
-          border-radius:5px;
         }
         input[type="submit"]{
           background: #3f51b5;
-          border: 0;
-          width: 200px;
-          color: white;
-          height: 48px;
-          border-radius: 5px;
-          font-size: 16px;
           display: flex;
+          color:white;
+          width:200px;
           align-items: center;
           justify-content: center;
-          margin-top: 16px;
-          margin-left: auto;
+          margin: 16px 0 0 auto;
         }
       </style>
       <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -83,17 +71,17 @@ function generateHomePage(networks){
   var out=html_tmpl();
   var page = `
     <form method="POST" action="/">
-      <label for="ssid-chooser">Choose Wifi</label>
-      <select name="ssid" id="ssid-chooser">
+      <label for="s">Choose Wifi</label>
+      <select name="s" id="s">
         {{networks_code}}
       </select>
-      <label for="password-chooser">Password</label>
-      <input id="password-chooser" name="password" type="password" placeholder="Password"/>
+      <label for="p">Password</label>
+      <input id="p" name="p" type="password" placeholder="Password"/>
       <input type="submit">
     </form>
   `;
-  out=out.replace("{{body}}", page)
-  return out.replace("{{networks_code}}", networks_html.join(""));
+  page=page.replace("{{networks_code}}", networks_html.join(""))
+  return out.replace("{{body}}", page)
 }
 function parseRequestData(string){
   var obj = string.split("&").reduce(function(prev, curr, i, arr) {
@@ -115,7 +103,7 @@ function handleRequest(req, res) {
     res.end(generateThanksPage());
     setTimeout(function(){
       wifi.stopAP();
-      start_wifi(obj.ssid, obj.password);
+      start_wifi(obj.s, obj.p);
       digitalWrite(D2, false)
     }, 3000)
   }else{
@@ -200,8 +188,6 @@ function main() {
     console.log("message", message);
     digitalWrite(D2, !JSON.parse(message).open)
   })
-
-
 
   //get variables
   ssid=E.toString(f.read(0))
