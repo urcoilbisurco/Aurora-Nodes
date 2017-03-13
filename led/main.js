@@ -2,57 +2,9 @@ const wifi = require('Wifi');
 const http = require("http");
 var f = new (require("FlashEEPROM"))();
 const env=require("./_env.js");
-let mqtt = require("MQTT").create(env.mqtt.ip, env.mqtt.options);
-
+let mqtt=undefined;
 function html_tmpl(){
-  var out=`
-    <html>
-    <head>
-      <style>
-        body{
-          background: #f4f4f4;
-          font-family: "Helvetica Neue";
-          color: #666;
-          max-width: 350px;
-          margin: 0 auto;
-          padding: 64px 0 0 0;
-        }
-        form{
-          display: flex;
-          flex-direction: column;
-        }
-        label{
-          font-size: 19px;
-          margin-top: 16px 0 8px 0;
-        }
-        select{
-          color: #666;
-        }
-        input, select{
-          border-radius: 5px;
-          background: white;
-          border: 0;
-          height: 48px;
-          font-size: 16px;
-          padding-left:8px;
-        }
-        input[type="submit"]{
-          background: #3f51b5;
-          display: flex;
-          color:white;
-          width:200px;
-          align-items: center;
-          justify-content: center;
-          margin: 16px 0 0 auto;
-        }
-      </style>
-      <meta name="viewport" content="width=device-width, initial-scale=1">
-    </head>
-    <body>
-      {{body}}
-    </body>
-  `;
-  return out;
+  return out=`<html> <head>  <meta name="viewport" content="width=device-width, initial-scale=1"> </head> <body>{{body}}</body> </html>`;
 }
 function generateThanksPage(){
   var page = `
@@ -64,12 +16,12 @@ function generateThanksPage(){
   var out=html_tmpl();
   return out.replace("{{body}}", page);
 }
-function generateHomePage(networks){
-  var networks_html= networks.map(function(network) {
-      return '<option value="'+network.ssid+'">'+network.ssid+'</option>';
+function generateHomePage(ns){
+  var n_h= networks.map(function(n) {
+      return '<option value="'+n.ssid+'">'+n.ssid+'</option>';
   });
-  var out=html_tmpl();
-  var page = `
+  ns=null;
+  var p = `
     <form method="POST" action="/">
       <label for="s">Choose Wifi</label>
       <select name="s" id="s">
@@ -77,11 +29,14 @@ function generateHomePage(networks){
       </select>
       <label for="p">Password</label>
       <input id="p" name="p" type="password" placeholder="Password"/>
-      <input type="submit">
+      <label for="c">Node Code</label>
+      <input id="c" name="c" type="text" placeholder="1234"/>
+      <input type="submit" value="save">
     </form>
   `;
-  page=page.replace("{{networks_code}}", networks_html.join(""))
-  return out.replace("{{body}}", page)
+  var p=p.replace("{{networks_code}}", n_h)
+  n_h=null;
+  return html_tmpl().replace("{{body}}", p)
 }
 function parseRequestData(string){
   var obj = string.split("&").reduce(function(prev, curr, i, arr) {
@@ -103,29 +58,28 @@ function handleRequest(req, res) {
     res.end(generateThanksPage());
     setTimeout(function(){
       wifi.stopAP();
-      start_wifi_and_register(obj.s, obj.p, obj.code);
+      start_wifi_and_register(obj.s, obj.p, obj.c);
       digitalWrite(D2, false)
     }, 3000)
   }else{
-    //Handles all requests
-    res.writeHead(200, {'Content-Type': 'text/html'});
     //Scans for accessible networks
     wifi.scan(function(networks){
+      res.writeHead(200, {'Content-Type': 'text/html'});
       res.end(generateHomePage(networks));
     });
   }
 }
 
 function onWifiError(){
-  digitalWrite(D2, false)
   //start AP and web server
   console.log("ERROR wifi")
   wifi.setHostname("aurora")
-  wifi.startAP("aurora-node", {}, function(err){
+  wifi.startAP("aurora", {}, function(err){
     if(err) {
         console.log("An error has occured :( ", err.message);
     } else {
       http.createServer(handleRequest).listen(80);
+      digitalWrite(D2, false)
       console.log("Visit http://" + wifi.getIP().ip, "in your web browser.");
     }
   })
@@ -157,6 +111,23 @@ function blink(times){
     }
   },300)
 }
+function register_node(code){
+  console.log("registering node...")
+  console.log("url:", "http://"+env.server+"/api/v1/nodes/register/"+code)
+  require("http").get("http://"+env.server+"/api/v1/nodes/register/"+code, function(res) {
+    var c = "";
+    res.on('data', function(data) {
+      c += data;
+      console.log("data?", data)
+      console.log("JSON> ", JSON.parse(data));
+    });
+    res.on('close', function(data) {
+      console.log("contents", JSON.parse(c).uuid)
+      j=JSON.parse(c)
+      f.write(3, j.user+"/"+j._id);
+    });
+  });
+}
 function start_wifi_and_register(ssid, password, code){
   check_wifi()
   wifi.connect(ssid, { password: password }, error => {
@@ -167,53 +138,56 @@ function start_wifi_and_register(ssid, password, code){
       //ok, save variables
       f.write(0, ssid);
       f.write(1, password);
+      f.write(2, code);
       //send message in GET to server to register node
+      register_node(code)
     }
     blink(5)
     //mqtt.connect()
   });
 }
-
+function generate_topic(){
+  return E.toString(f.read(3))
+  // var e=f.read(3)
+  // if(e){
+  //   return E.toString(e)
+  // }else{
+  //   console.log("topic undefined?")
+  //   return undefined;
+  // }
+}
 function main() {
-  //onWifiError()
   check_wifi()
 
-
-  mqtt.on('connected', () => {
-      console.log('Connected to mqtt!');
-      mqtt.subscribe("58bd27936b4f3a89b6d86abf/led/update");
-  });
-  mqtt.on("message", (topic, message) => {
-    console.log("message received");
-    console.log("topic", topic);
-    console.log("message", message);
-    digitalWrite(D2, !JSON.parse(message).open)
-  })
-
   //get variables
-  ssid=E.toString(f.read(0))
-  pass=E.toString(f.read(1))
-  //pass=f.readMem(1)
-  console.log("ssid saved", ssid)
-  console.log("pass saved", pass)
+  let ssid=E.toString(f.read(0))
+  let pass=E.toString(f.read(1))
+  console.log("saved ssid:", ssid)
+  console.log("saved pass:", pass)
   if(ssid!=undefined){
-    wifi.connect(ssid, { password: pass }, error => {
-   //   //onWifiError();
-   //   console.log("ERROR?")
-     if (error){
-       onWifiError(error)
-     }else{
-       console.log(`Connected to: ${ wifi.getIP().ip }`)
-       mqtt.connect()
-     }
+    wifi.connect(ssid, { password: pass }, e => {
+      if (e){
+        onWifiError(e)
+      }else{
+        let t=generate_topic()
+        if(t){
+          mqtt = require("MQTT").create(env.mqtt.ip, env.mqtt.options);
+          mqtt.on('connected', () => {
+              console.log('Connected to mqtt!', t+"/update");
+              mqtt.subscribe(t+"/update");
+          });
+          mqtt.on("message", (to, m) => {
+            console.log("message", JSON.parse(m));
+            digitalWrite(D2, !JSON.parse(m).open)
+          })
+          mqtt.on("end", ()=>{
+            console.log("server disconnected. TODO Retry!")
+          })
+          mqtt.connect()
+        }else{
+          register_node(E.toString(f.read(2)))
+        }
+      }
    });
   }
-  // wifi.connect("env.name", { password: "env.password" }, error => {
-  //   //onWifiError();
-  //   console.log("ERROR?")
-  //   if (error) onWifiError(error)
-  //   else console.log(`Connected to: ${ wifi.getIP().ip }`)
-  //   //mqtt.connect()
-  // });
-
 }
