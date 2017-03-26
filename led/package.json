@@ -9,11 +9,13 @@
     "repl": "node ./scripts/repl"
   },
   "devDependencies": {
+    "webpack": "^2.2.1",
     "thingssdk-deployer": "~1.0.0",
     "thingssdk-espruino-strategy": "~1.0.1"
   },
   "engines": {
     "espruino": "1.89"
   },
-  "dependencies": {}
+  "dependencies": {
+  }
 }

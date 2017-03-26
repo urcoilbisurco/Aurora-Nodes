@@ -1,27 +1,11 @@
 'use strict';
 
+print(process.memory());
 var wifi = require('Wifi');
-var http = require("http");
 var f = new (require("FlashEEPROM"))();
-var env = require("./_env.js");
-var mqtt = require("MQTT").create(env.mqtt.ip, env.mqtt.options);
-function html_tmpl() {
-  var out = "\n    <html>\n    <head>\n      <style>\n        body{\n          background: #f4f4f4;\n          font-family: \"Helvetica Neue\";\n          color: #666;\n          max-width: 350px;\n          margin: 0 auto;\n          padding: 64px 0 0 0;\n        }\n        form{\n          display: flex;\n          flex-direction: column;\n        }\n        label{\n          font-size: 19px;\n          margin-top: 16px 0 8px 0;\n        }\n        select{\n          color: #666;\n        }\n        input, select{\n          border-radius: 5px;\n          background: white;\n          border: 0;\n          height: 48px;\n          font-size: 16px;\n          padding-left:8px;\n        }\n        input[type=\"submit\"]{\n          background: #3f51b5;\n          display: flex;\n          align-items: center;\n          justify-content: center;\n          margin: 16px 0 0 auto;\n        }\n      </style>\n      <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n    </head>\n    <body>\n      {{body}}\n    </body>\n  ";
-  return out;
-}
 function generateThanksPage() {
-  var page = "\n      <div>\n        <h1>Thank you.</h1>\n        <h2>You can now close this page and restore your Wi-Fi connection.</h2>\n      </div>\n  ";
-  var out = html_tmpl();
-  return out.replace("{{body}}", page);
-}
-function generateHomePage(networks) {
-  var networks_html = networks.map(function (network) {
-    return '<option value="' + network.ssid + '">' + network.ssid + '</option>';
-  });
-  var out = html_tmpl();
-  var page = "\n    <form method=\"POST\" action=\"/\">\n      <label for=\"s\">Choose Wifi</label>\n      <select name=\"s\" id=\"s\">\n        {{networks_code}}\n      </select>\n      <label for=\"p\">Password</label>\n      <input id=\"p\" name=\"p\" type=\"password\" placeholder=\"Password\"/>\n      <input type=\"submit\">\n    </form>\n  ";
-  page = page.replace("{{networks_code}}", networks_html.join(""));
-  return out.replace("{{body}}", page);
+  var page = "<html>\n      <div>\n        <h1>Thank you.</h1>\n        <h2>You can now close this page and restore your Wi-Fi connection.</h2>\n      </div>\n      </html>\n  ";
+  return page;
 }
 function parseRequestData(string) {
   var obj = string.split("&").reduce(function (prev, curr, i, arr) {
@@ -33,6 +17,7 @@ function parseRequestData(string) {
 }
 function handleRequest(req, res) {
   console.log("connected...");
+  print(process.memory());
   if (req.method == "POST") {
     obj = parseRequestData(req.read());
     console.log("start wifi...", obj);
@@ -40,26 +25,39 @@ function handleRequest(req, res) {
     res.end(generateThanksPage());
     setTimeout(function () {
       wifi.stopAP();
-      start_wifi(obj.s, obj.p);
+      start_wifi_and_register(obj.s, obj.p, obj.c);
       digitalWrite(D2, false);
     }, 3000);
   } else {
-    res.writeHead(200, { 'Content-Type': 'text/html' });
-    wifi.scan(function (networks) {
-      res.end(generateHomePage(networks));
+    wifi.scan(function (ns) {
+      print(process.memory());
+      var out = "<html><head><style>body{font-family:\"Helvetica\";font-size:19px;padding:64px 32px;}*{text-align:center;}</style> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"></head><body>";
+      out = out + "<form method=\"POST\" action=\"/\"><label for=\"s\">Choose Wifi</label><br/><select name=\"s\" id=\"s\">";
+      out = out + ns.map(function (n) {
+        return '<option value="' + n.ssid + '">' + n.ssid + '</option>';
+      });
+      print(process.memory());
+      out = out + "</select><br/><label for=\"p\">Password</label><br/><input id=\"p\" name=\"p\" type=\"password\" placeholder=\"Password\"/><br/><label for=\"c\">Node Code</label><br/><input id=\"c\" name=\"c\" type=\"text\" placeholder=\"1234\"/><br/><input type=\"submit\" value=\"save\"></form>";
+      console.log("connected...");
+      print(process.memory());
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      out = out + "</body></html>";
+      res.end(out);
     });
   }
 }
 function onWifiError() {
-  digitalWrite(D2, false);
   console.log("ERROR wifi");
+  print(process.memory());
   wifi.setHostname("aurora");
-  wifi.startAP("aurora-node", {}, function (err) {
+  wifi.startAP("aurora", {}, function (err) {
     if (err) {
       console.log("An error has occured :( ", err.message);
     } else {
-      http.createServer(handleRequest).listen(80);
+      require("http").createServer(handleRequest).listen(80);
+      digitalWrite(D2, false);
       console.log("Visit http://" + wifi.getIP().ip, "in your web browser.");
+      print(process.memory());
     }
   });
 }
@@ -78,19 +76,27 @@ function check_wifi() {
     });
   }, 1000);
 }
-function blink(times) {
-  var ledOn = false;
-  var i = 0;
-  message_interval = setInterval(function () {
-    digitalWrite(D2, ledOn);
-    ledOn = !ledOn;
-    i = i + 1;
-    if (i == times * 2) {
-      clearInterval(message_interval);
-    }
-  }, 300);
+function register_node(code, callback) {
+  var env = require("./_env.js");
+  require("http").get(env[0] + "/api/v1/nodes/register/" + code, function (res) {
+    var c = "";
+    res.on('data', function (data) {
+      c += data;
+      console.log("data?", data);
+      console.log("JSON> ", JSON.parse(data));
+    });
+    res.on('close', function (data) {
+      console.log("?", data);
+      console.log("contents", JSON.parse(c));
+      j = JSON.parse(c);
+      print(process.memory());
+      f.write(3, j.user + "/" + j.uuid);
+      console.log("rebooting....");
+      load();
+    });
+  });
 }
-function start_wifi(ssid, password) {
+function start_wifi_and_register(ssid, password, code) {
   check_wifi();
   wifi.connect(ssid, { password: password }, function (error) {
     if (error) {
@@ -99,35 +105,53 @@ function start_wifi(ssid, password) {
       console.log("Connected to: " + wifi.getIP().ip);
       f.write(0, ssid);
       f.write(1, password);
+      f.write(2, code);
+      register_node(code);
     }
-    blink(5);
+    require("./blink.js")(5);
   });
 }
-function main() {
+function conn(callback) {
   check_wifi();
-  mqtt.on('connected', function () {
-    console.log('Connected to mqtt!');
-    mqtt.subscribe("58bd27936b4f3a89b6d86abf/led/update");
-  });
-  mqtt.on("message", function (topic, message) {
-    console.log("message received");
-    console.log("topic", topic);
-    console.log("message", message);
-    digitalWrite(D2, !JSON.parse(message).open);
-  });
-  ssid = E.toString(f.read(0));
-  pass = E.toString(f.read(1));
-  console.log("ssid saved", ssid);
-  console.log("pass saved", pass);
+  var ssid = E.toString(f.read(0));
+  var pass = E.toString(f.read(1));
+  console.log("saved ssid:", ssid);
+  console.log("saved pass:", pass);
   if (ssid != undefined) {
-    wifi.connect(ssid, { password: pass }, function (error) {
-      if (error) {
-        onWifiError(error);
+    wifi.connect(ssid, { password: pass }, function (e) {
+      if (e) {
+        onWifiError(e);
       } else {
-        console.log("Connected to: " + wifi.getIP().ip);
-        mqtt.connect();
+        var token = E.toString(f.read(3));
+        if (token) {
+          console.log("token", token);
+          callback(token);
+        } else {
+          register_node(E.toString(f.read(2)));
+        }
       }
     });
   }
 }
-main();
+function main() {
+  print(process.memory());
+  var env = require("./_env.js");
+  conn(function (topic) {
+    console.log("CONNECTED", topic);
+    var mqtt = require("MQTT").create(env[1], { options: { port: env[2] } });
+    mqtt.on('connected', function () {
+      console.log('Connected to mqtt!', topic + "/update");
+      require("./blink.js")(5);
+      mqtt.subscribe(topic + "/update");
+    });
+    mqtt.on("message", function (to, m) {
+      console.log("message", JSON.parse(m));
+      digitalWrite(D2, !JSON.parse(m).open);
+    });
+    mqtt.on("end", function () {
+      console.log("server disconnected. TODO Retry!");
+    });
+    mqtt.connect();
+  });
+}
+E.on("init", main);save();
