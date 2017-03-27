@@ -1,12 +1,8 @@
 print(process.memory());
 const conn=require("./conn.js");
+const env= require("./_env.js");
 
 function main(){
-  print(process.memory());
-  // f.write(0, "test");
-  // f.write(1, "test");
-  // f.write(3,0);
-  const env= require("./_env.js")
   conn(function(topic){
     console.log("CONNECTED", topic);
     let mqtt = require("MQTT").create(env[1], {options:{port:env[2]}});
