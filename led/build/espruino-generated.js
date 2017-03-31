@@ -1,6 +1,7 @@
 'use strict';
 
 print(process.memory());
+var env = require("./_env.js");
 var wifi = require('Wifi');
 var f = new (require("FlashEEPROM"))();
 function generateThanksPage() {
@@ -26,7 +27,7 @@ function handleRequest(req, res) {
     setTimeout(function () {
       wifi.stopAP();
       start_wifi_and_register(obj.s, obj.p, obj.c);
-      digitalWrite(D2, false);
+      digitalWrite(13, false);
     }, 3000);
   } else {
     wifi.scan(function (ns) {
@@ -55,7 +56,7 @@ function onWifiError() {
       console.log("An error has occured :( ", err.message);
     } else {
       require("http").createServer(handleRequest).listen(80);
-      digitalWrite(D2, false);
+      digitalWrite(13, false);
       console.log("Visit http://" + wifi.getIP().ip, "in your web browser.");
       print(process.memory());
     }
@@ -134,11 +135,9 @@ function conn(callback) {
   }
 }
 function main() {
-  print(process.memory());
-  var env = require("./_env.js");
   conn(function (topic) {
     console.log("CONNECTED", topic);
-    var mqtt = require("MQTT").create(env[1], { options: { port: env[2] } });
+    var mqtt = require("MQTT").create(env[1]);
     mqtt.on('connected', function () {
       console.log('Connected to mqtt!', topic + "/update");
       require("./blink.js")(5);

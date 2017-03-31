@@ -1,5 +1,5 @@
 {
-  "name": "led",
+  "name": "ledstrip",
   "version": "0.0.0",
   "private": true,
   "main": "main.js",
@@ -14,7 +14,5 @@
   },
   "engines": {
     "espruino": "1.89"
-  },
-  "dependencies": {
   }
 }

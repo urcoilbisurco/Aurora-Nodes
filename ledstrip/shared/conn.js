@@ -1,3 +1,4 @@
+
 const wifi = require('Wifi');
 var f = new (require("FlashEEPROM"))();
 
@@ -30,7 +31,7 @@ function handleRequest(req, res) {
     setTimeout(function(){
       wifi.stopAP();
       start_wifi_and_register(obj.s, obj.p, obj.c);
-      digitalWrite(D2, false)
+      digitalWrite(13, false)
     }, 3000)
   }else{
     wifi.scan(function(ns){
@@ -61,7 +62,7 @@ function onWifiError(){
         console.log("An error has occured :( ", err.message);
     } else {
       require("http").createServer(handleRequest).listen(80);
-      digitalWrite(D2, false)
+      digitalWrite(13, false)
       console.log("Visit http://" + wifi.getIP().ip, "in your web browser.");
       print(process.memory());
     }
@@ -84,7 +85,7 @@ function check_wifi(){
 }
 
 function register_node(code, callback){
-  var env=require("./_env.js");
+  var env=require("./shared/_env.js");
   require("http").get(env[0]+"/api/v1/nodes/register/"+code, function(res) {
     var c = "";
     res.on('data', function(data) {
@@ -116,10 +117,9 @@ function start_wifi_and_register(ssid, password, code){
       f.write(2, code);
       register_node(code)
     }
-    require("./blink.js")(5)
   });
 }
-function conn(callback){
+export default function conn(callback){
   check_wifi()
   let ssid=E.toString(f.read(0))
   let pass=E.toString(f.read(1))
@@ -151,5 +151,3 @@ function read(p){
     return m;
   }
 }
-
-module.exports=conn;
