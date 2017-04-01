@@ -135,6 +135,7 @@ function conn(callback) {
   }
 }
 function main() {
+  console.log("TEST");
   conn(function (topic) {
     console.log("CONNECTED", topic);
     var mqtt = require("MQTT").create(env[1]);

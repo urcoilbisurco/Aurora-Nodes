@@ -156,6 +156,7 @@ function read(p){
 
 
 function main(){
+  console.log("TEST");
   conn(function(topic){
     console.log("CONNECTED", topic);
     let mqtt=require("MQTT").create(env[1]);
