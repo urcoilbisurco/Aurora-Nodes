@@ -1,0 +1,27 @@
+class Led{
+  constructor(pin){
+    this.pin=pin;
+  }
+  write(w){
+    digitalWrite(this.pin,w);
+  }
+  turn(s){
+    clearInterval(this.i);
+    this.write(!s);
+  }
+  blink(times,t=500){
+    clearInterval(this.i);
+    this.ledOn=false;
+    this.times=0;
+    this.i=setInterval(()=>{
+      this.write(this.ledOn);
+      this.ledOn=!this.ledOn;
+      this.times=this.times+1;
+      if(this.times==times*2){
+        this.times=0;
+        clearInterval(this.i);
+      }
+    },(t))
+  }
+}
+module.exports=Led;

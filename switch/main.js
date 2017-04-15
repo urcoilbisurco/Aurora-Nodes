@@ -1,7 +1,8 @@
 const env= require("./_env.js");
 const wifi = require('Wifi');
 var f = new (require("FlashEEPROM"))();
-const b=require("./blink.js");
+const Led=require("./led.js");
+const l=new Led(13);
 //IO for Sonoff Itead
 // 13 : led
 // 0 : Button
@@ -49,6 +50,7 @@ Conn.prototype.parse= (s) => {
 }
 Conn.prototype.onWifiError = () => {
   console.log("ERROR wifi")
+  _c.reboot=false;
   print(process.memory());
   wifi.setHostname("aurora")
   wifi.startAP("aurora", {}, err => {
@@ -56,7 +58,7 @@ Conn.prototype.onWifiError = () => {
         console.log("An error has occured :( ", err.message);
     } else {
       require("http").createServer(_c.handleRequest).listen(80);
-      digitalWrite(13, false)
+      l.turn(true)
       console.log("Visit http://" + wifi.getIP().ip, "in your web browser.");
       print(process.memory());
     }
@@ -91,11 +93,22 @@ Conn.prototype.register_node = (code) => {
     });
   });
 }
+Conn.prototype.error=()=>{
+  _c.reboot=true;
+  print(process.memory());
+  l.blink(5, 1000);
+  //setTimeout(()=>{
+    // print(process.memory());
+    // if(_c.reboot)
+    //   console.log("rebooting...")
+    //   load();
+  //}, 10000)
+}
 Conn.prototype.start_wifi_and_register = (ssid, password, code)=>{
   _c.check_wifi()
   wifi.connect(ssid, { password: password }, (error) => {
     if(error){
-      _c.onWifiError()
+      _c.error()
     }else{
       console.log(`Connected to: ${ wifi.getIP().ip }`)
       f.write(0, ssid);
@@ -103,7 +116,7 @@ Conn.prototype.start_wifi_and_register = (ssid, password, code)=>{
       f.write(2, code);
       _c.register_node(code)
     }
-    b(5)
+    l.blink(5)
   });
 }
 Conn.prototype.read = (pos)=>{
@@ -123,7 +136,6 @@ Conn.prototype.init = (cb) =>{
       }else{
         let token=_c.read(3)
         if(token){
-          //require("./blink.js")(5)
           console.log("after")
           print(process.memory());
           cb(token)
@@ -132,52 +144,36 @@ Conn.prototype.init = (cb) =>{
         }
       }
    });
+   wifi.on("disconnected", _c.error);
   }
 }
 
 pinMode(0, 'input_pullup');
 const onClickBtn = event => {
   console.log(`button pushed: ${ JSON.stringify(event) }`);
-  // const isOn = digitalRead(D4)
-  // digitalWrite(D4, !isOn)
-  //onWifiError();
+  print(process.memory());
+  _c.onWifiError();
 }
 
 const main = ()=>{
   setWatch(onClickBtn, 0, { repeat: true, edge: 'falling', debounce: 50 });
-  print(process.memory());
   let c=new Conn();
   print(process.memory());
-  wifi.on("disconnected", (e)=>{
-    b(10);
-    setTimeout(()=>{
-      console.log("rebooting...")
-      load();
-    }, 10000)
-  })
   c.init( topic =>{
     print(process.memory());
-    //require("./blink.js")(5)
     console.log("CONNECTED", topic);
     let mqtt = require("MQTT").create(env[1], {options:{port:env[2]}});
     mqtt.on('connected', () => {
       mqtt.subscribe(topic+"/update");
       console.log('Connected to mqtt!', topic+"/update");
-      b(5)
+      l.blink(5)
     });
     mqtt.on("message", (to, m) => {
       console.log("message", JSON.parse(m));
       digitalWrite(12, JSON.parse(m).open)
-      digitalWrite(13, !JSON.parse(m).open)
+      l.turn(JSON.parse(m).open)
     })
-    mqtt.on("end", ()=>{
-      console.log("server disconnected. TODO Retry!")
-      b(10);
-      setTimeout(()=>{
-        console.log("rebooting...")
-        load();
-      }, 10000)
-    })
+    mqtt.on("end", _c.error())
     mqtt.connect()
     print(process.memory());
   })
