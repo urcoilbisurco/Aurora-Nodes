@@ -148,6 +148,13 @@ const main = ()=>{
   print(process.memory());
   let c=new Conn();
   print(process.memory());
+  wifi.on("disconnected", (e)=>{
+    b(10);
+    setTimeout(()=>{
+      console.log("rebooting...")
+      load();
+    }, 10000)
+  })
   c.init( topic =>{
     print(process.memory());
     //require("./blink.js")(5)
@@ -165,8 +172,8 @@ const main = ()=>{
     })
     mqtt.on("end", ()=>{
       console.log("server disconnected. TODO Retry!")
+      b(10);
       setTimeout(()=>{
-        b(10);
         console.log("rebooting...")
         load();
       }, 10000)
