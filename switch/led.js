@@ -7,7 +7,6 @@ export default L={
   },
   reset:()=>{
     if(L.i){
-      console.log("resetting... (not undefined)", L.i)
       clearInterval(L.i);
       L.i=undefined;
     }

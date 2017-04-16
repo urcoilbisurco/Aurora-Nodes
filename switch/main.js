@@ -2,6 +2,7 @@ const env= require("./_env.js");
 const wifi = require('Wifi');
 var f = new (require("FlashEEPROM"))();
 import L from "./led.js";
+import _mqtt from "./tinyMQTT.js";
 //IO for Sonoff Itead
 // 13 : led
 // 0 : Button
@@ -10,25 +11,24 @@ L.init(13);
 
 const C={
   handleRequest: (req,res)=>{
-    console.log("connected...");
-    print(process.memory());
     if (req.method=="POST") {
-      obj=C.parse(req.read())
-      console.log("start wifi...", obj)
+      req.on("close", function(){
+        obj=C.parse(req.read())
+        if(obj.s){
+          setTimeout(() => {
+            wifi.stopAP();
+            C.start_wifi_and_register(obj.s, obj.p, obj.c);
+            L.turn(false);
+          }, 3000)
+        }
+      })
       res.writeHead(200);
       res.end(`<html><h2>You can now close this page and restore your Wi-Fi connection.</h2></html>`);
-      setTimeout(() => {
-        wifi.stopAP();
-        C.start_wifi_and_register(obj.s, obj.p, obj.c);
-        L.turn(false);
-      }, 3000)
     }else{
       wifi.scan(ns => {
         let out=`<html><style>body *{font-size:24px;padding:8px;display:block;}</style><meta name="viewport" content="width=device-width, initial-scale=1"><form method="POST" action="/"><label for="s">Choose Wifi</label><br/><select name="s" id="s">`
         out=out+ns.map(n => '<option value="'+n.ssid+'">'+n.ssid+'</option>');
         out=out+`</select><label>Password</label><input id="p" name="p" type="text"/><label for="c">Node Code</label><input id="c" name="c" type="text" /><input type="submit" value="save"></form>`;
-        console.log("connected...");
-        print(process.memory());
         out=out+"</html>"
         res.writeHead(200);
         res.end(out);
@@ -42,15 +42,13 @@ const C={
       return prev;
     }, {});
   },
-  onWifiError:()=>{
-    console.log("ERROR wifi")
+  start_setup:()=>{
     C.reboot=false;
     print(process.memory());
     wifi.setHostname("aurora")
     wifi.startAP("aurora", {}, err => {
       require("http").createServer(C.handleRequest).listen(80);
       L.turn(true)
-      console.log("Visit http://" + wifi.getIP().ip, "in your web browser.");
       print(process.memory());
     })
   },
@@ -73,11 +71,25 @@ const C={
     console.log("ERROR")
     C.reboot=true;
     print(process.memory());
-    L.blink(5, 1000);
+    L.blink(2, 1500);
     setTimeout(()=>{
       print(process.memory());
       if(C.reboot){load()};
     }, 10000)
+  },
+  register_node: code => {
+    require("http").get(env[0]+"/api/v1/nodes/register/"+code, (res)=> {
+      let c = "";
+      res.on('data', (data)=> c += data)
+      res.on('close', (data)=> {
+        j=JSON.parse(c)
+        print(process.memory());
+        f.write(3, j.user+"/"+j.uuid);
+        //REBOOT!
+        console.log("rebooting....")
+        load()
+      });
+    });
   },
   start_wifi_and_register:(ssid, password, code)=>{
     C.check_wifi()
@@ -125,11 +137,7 @@ const C={
 }
 pinMode(0, 'input_pullup');
 const onClickBtn = event => {
-  console.log(`button pushed: ${ JSON.stringify(event) }`);
-  print(process.memory());
-  Modules.removeCached('MQTT')
-  print(process.memory());
-  C.onWifiError();
+  C.start_setup();
 }
 
 const main = ()=>{
@@ -138,19 +146,19 @@ const main = ()=>{
   C.init( topic =>{
     print(process.memory());
     console.log("CONNECTED", topic);
-    let mqtt = require("MQTT").create(env[1], {options:{port:env[2]}});
+    let mqtt = _mqtt(env[1], {options:{port:env[2]}});
     mqtt.on('connected', () => {
-      mqtt.subscribe(topic+"/update");
       console.log('Connected', topic+"/update");
-      L.blink(2,3000)
+      mqtt.subscribe(topic+"/update");
+      L.blink(5)
     });
-    mqtt.on("message", (to, m) => {
-      console.log("message", JSON.parse(m));
-      digitalWrite(12, JSON.parse(m).open)
-      digitalWrite(13, !JSON.parse(m).open)
-      L.turn(JSON.parse(m).open)
+    mqtt.on("message", (m) => {
+      d=JSON.parse(m.message)
+      console.log("message", d);
+      digitalWrite(12, d.open)
+      L.turn(d)
     })
-    mqtt.on("close", C.error)
+    mqtt.on("disconnected", C.error)
     mqtt.connect()
     print(process.memory());
   })
