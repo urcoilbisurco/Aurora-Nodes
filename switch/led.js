@@ -1,27 +1,27 @@
-class Led{
-  constructor(pin){
-    this.pin=pin;
-  }
-  write(w){
-    digitalWrite(this.pin,w);
-  }
-  turn(s){
-    clearInterval(this.i);
-    this.write(!s);
-  }
-  blink(times,t=500){
-    clearInterval(this.i);
-    this.ledOn=false;
-    this.times=0;
-    this.i=setInterval(()=>{
-      this.write(this.ledOn);
-      this.ledOn=!this.ledOn;
-      this.times=this.times+1;
-      if(this.times==times*2){
-        this.times=0;
-        clearInterval(this.i);
+export default L={
+  i:undefined,
+  init:(pin)=>{
+    L.pin=pin
+  },
+  write:(w)=>{
+    digitalWrite(L.pin,w);
+  },
+  turn:(s)=>{
+    clearInterval(L.i);
+    L.write(!s);
+  },
+  blink:(times,t=500)=>{
+    clearInterval(L.i);
+    L.ledOn=false;
+    L.times=0;
+    L.i=setInterval(()=>{
+      L.write(L.ledOn);
+      L.ledOn=!L.ledOn;
+      L.times=L.times+1;
+      if(L.times==times*2){
+        L.times=0;
+        clearInterval(L.i);
       }
     },(t))
   }
 }
-module.exports=Led;
