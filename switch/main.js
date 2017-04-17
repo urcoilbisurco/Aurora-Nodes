@@ -73,7 +73,6 @@ const C={
     print(process.memory());
     L.blink(2, 1500);
     setTimeout(()=>{
-      print(process.memory());
       if(C.reboot){load()};
     }, 10000)
   },
@@ -85,8 +84,6 @@ const C={
         j=JSON.parse(c)
         print(process.memory());
         f.write(3, j.user+"/"+j.uuid);
-        //REBOOT!
-        console.log("rebooting....")
         load()
       });
     });
@@ -154,9 +151,8 @@ const main = ()=>{
     });
     mqtt.on("message", (m) => {
       d=JSON.parse(m.message)
-      console.log("message", d);
       digitalWrite(12, d.open)
-      L.turn(d)
+      L.turn(d.open)
     })
     mqtt.on("disconnected", C.error)
     mqtt.connect()
