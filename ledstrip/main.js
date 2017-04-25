@@ -19,64 +19,70 @@ function main() {
   //colorLeds(0,0,0);
   //ping(0,colors);
   //bar(0, colors);
-  pulse(colors);
-}
-function bar(led, colors, dir=1){
-  let data=[];
-  for (var i=0; i<leds; i++) {
-    if(i<led){
-      data.push(...colors)
-    }else{
-      data.push(...[0,0,0]);
-    }
-  }
-  esp8266.neopixelWrite(NodeMCU.D2, data);
-  data=null;
-  let led2=led+dir;
-  if((dir==1 & led<leds) | (dir==-1 & led>0)){
-  //if(led<leds){
-    setTimeout(()=>{
-        bar(led2, colors, dir)
-    },time)
-  }else{
-    setTimeout(()=>{
-        bar(led2+(dir*-1), colors, dir*-1)
-    },time)
-  }
+  neopixel.init(100, NodeMCU.D2);
+  neopixel.bar(colors);
+
+  //pulse(colors);
 }
 
-function ping(led, colors, dir=1){
-  let data=[];
-  for (var i=0; i<leds; i++) {
-    if(i==led){
-      data.push(...colors)
-    }else{
-      data.push(...[0,0,0]);
+let neopixel={
+  leds:0,
+  init:(leds, pin, time=1)=>{
+    this.leds=leds;
+    this.pin=pin;
+    this.time=time;
+  },
+  bar: (colors, led=0, dir=1)=>{
+    let data=[];
+    for (var i=0; i<this.leds; i++) {
+      if(i<led){
+        data.push(...colors)
+      }else{
+        data.push(...[0,0,0]);
+      }
     }
-  }
-  esp8266.neopixelWrite(NodeMCU.D2, data);
-  data=null;
-  let led2=led+dir;
-  if((dir==1 & led<leds) | (dir==-1 & led>0)){
-  //if(led<leds){
+    this.show(data);
+    data=null;
+    let led2=led+dir;
     setTimeout(()=>{
+      if((dir==1 & led<this.leds) | (dir==-1 & led>0)){
+        this.bar(led2, colors, dir)
+      }else{
+        this.bar(led2+(dir*-1), colors, dir*-1)
+      }
+    },this.time)
+  },
+  show:(data)=>{
+    esp8266.neopixelWrite(this.pin, data);
+  },
+  ping:(colors, led=0, dir=1)=>{
+    let data=[];
+    for (var i=0; i<this.leds; i++) {
+      if(i==led){
+        data.push(...colors)
+      }else{
+        data.push(...[0,0,0]);
+      }
+    }
+    this.show(data);
+    data=null;
+    let led2=led+dir;
+    setTimeout(()=>{
+      if((dir==1 & led<this.leds) | (dir==-1 & led>0)){
         ping(led2, colors, dir)
-    },time)
-  }else{
-    setTimeout(()=>{
+      }else{
         ping(led2+(dir*-1), colors, dir*-1)
+      }
     },time)
+  },
+  colorLeds(colors){
+    var data = [];
+    for (var i=0; i<this.leds; i++) {
+      data.push(...colors)
+    }
+    this.write(data);
   }
-}
 
-function colorLeds(red, green, blue) {
-  var data = [];
-  for (var i=0; i<leds; i++) {
-    data.push(green);
-    data.push(red);
-    data.push(blue);
-  }
-  esp8266.neopixelWrite(NodeMCU.D2, data);
 }
 
 function r_pulse(colors, start,end,step){
@@ -99,8 +105,9 @@ function pulse(colors){
   start=0;
   end=max;
   f_pulse(colors, start,end,step)
-
 }
+
+
 function f_pulse(colors, start, end, step){
   console.log("colors", colors);
   let data=[];
