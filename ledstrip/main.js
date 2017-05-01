@@ -1,4 +1,3 @@
-const env= require("./shared/_env.js");
 let esp8266 = require("ESP8266");
 pinMode(D2, "output");
 let leds=100;
@@ -81,7 +80,7 @@ let neopixel={
       data.push(...colors)
     }
     this.write(data);
-  }
+  },
 
 }
 

@@ -1,5 +1,5 @@
 # Created by https://www.gitignore.io/api/node
-*/_env.js
+**/_env.js
 ### Node ###
 # Logs
 logs

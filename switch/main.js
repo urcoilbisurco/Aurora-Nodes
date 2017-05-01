@@ -1,4 +1,4 @@
-const env= require("./_env.js");
+import env from  "./_env.js";
 const wifi = require('Wifi');
 var f = new (require("FlashEEPROM"))();
 import L from "./led.js";
