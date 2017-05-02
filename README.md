@@ -26,7 +26,7 @@ Also, use
 C.setupPin(PIN)
 ```
 
-to setup the pin used for the setup Access Point button.
+to setup the pin used for the Access Point button.
 
 Then run
 
