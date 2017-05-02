@@ -1,9 +1,7 @@
-const env= require("./_env.js");
 const wifi = require('Wifi');
-var f = new (require("FlashEEPROM"))();
-import L from "./led.js";
+const f = new (require("FlashEEPROM"))();
 
-export default const C={
+export default C={
   handleRequest: (req,res)=>{
     if (req.method=="POST") {
       req.on("close", function(){
@@ -12,7 +10,7 @@ export default const C={
           setTimeout(() => {
             wifi.stopAP();
             C.start_wifi_and_register(obj.s, obj.p, obj.c);
-            L.turn(false);
+            C.L.turn(false);
           }, 3000)
         }
       })
@@ -42,14 +40,15 @@ export default const C={
     wifi.setHostname("aurora")
     wifi.startAP("aurora", {}, err => {
       require("http").createServer(C.handleRequest).listen(80);
-      L.turn(true)
+      C.L.turn(true)
       print(process.memory());
     })
   },
   check_wifi:()=>{
     var ct=setInterval(()=>{
       wifi.getDetails(obj =>{
-        console.log(obj.status)
+        console.log(obj.status);
+        print(process.memory());
         if(obj.status=="no_ap_found" || obj.status=="wrong_password" || obj.status=="off" || obj.status=="connect_failed"){
           C.error()
           clearInterval(ct);
@@ -63,12 +62,16 @@ export default const C={
 
   error:()=>{
     console.log("ERROR")
-    C.reboot=true;
-    print(process.memory());
-    L.blink(2, 1500);
-    setTimeout(()=>{
-      if(C.reboot){load()};
-    }, 10000)
+    if(C.pin){
+      C.reboot=true;
+      print(process.memory());
+      C.L.blink(2, 1500);
+      setTimeout(()=>{
+        if(C.reboot){load()};
+      }, 10000)
+    }else{
+      C.start_setup();
+    }
   },
   register_node: code => {
     require("http").get(env[0]+"/api/v1/nodes/register/"+code, (res)=> {
@@ -89,20 +92,23 @@ export default const C={
         C.error()
       }else{
         console.log(`Connected to: ${ wifi.getIP().ip }`)
+        f.erase();
         f.write(0, ssid);
         f.write(1, password);
         f.write(2, code);
         C.register_node(code)
       }
-      L.blink(5)
+      C.L.blink(5)
     });
   },
   read:(pos)=>{
     let p=f.read(pos);
     return (p!=undefined ? E.toString(p) : undefined)
   },
-  init:(cb)=>{
-    C.check_wifi()
+  init:(url, l, cb)=>{
+    C.url=url;
+    C.check_wifi();
+    C.L=l;
     let ssid=C.read(0)
     let pass=C.read(1)
     console.log("saved ssid:", ssid)
@@ -126,11 +132,11 @@ export default const C={
     }
   },
   setupPin:(pin)=>{
-    this.pin=pin;
+    C.pin=pin;
     pinMode(pin, 'input_pullup');
-    const onClickBtn = event => {
-      C.start_setup();
-    }
-    setWatch(onClickBtn, this.pin, { repeat: true, edge: 'falling', debounce: 50 });
+    // const onClickBtn = event => {
+    //   C.start_setup();
+    // }
+    setWatch(C.start_setup, C.pin, { repeat: true, edge: 'falling', debounce: 50 });
   }
 }

@@ -1,9 +1,7 @@
 import env from  "./_env.js";
-const wifi = require('Wifi');
-var f = new (require("FlashEEPROM"))();
-import L from "./led.js";
-import _mqtt from "./tinyMQTT.js";
-import C from "./conn.js";
+import L from "./utils/led.js";
+import _mqtt from "./utils/mqtt.js";
+import C from "./utils/conn.js";
 
 //IO for Sonoff Itead
 // 13 : led
@@ -14,7 +12,7 @@ L.init(13);
 const main = ()=>{
   //setup Button for start AP
   C.setupPin(0);
-  C.init( topic =>{
+  C.init(env[0], L, topic =>{
     console.log("CONNECTED", topic);
     let mqtt = _mqtt(env[1], {options:{port:env[2]}});
     mqtt.on('connected', () => {
