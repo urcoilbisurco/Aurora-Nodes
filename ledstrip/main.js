@@ -35,11 +35,7 @@ let N={
     console.log("COLORS", colors);
     let data=new Uint8Array(N.leds*3);
     data.fill(0);
-    for (var i=0; i<led; i++) {
-      data[i*3]=colors[0]
-      data[i*3+1]=colors[1]
-      data[i*3+2]=colors[2]
-    }
+    data.fill(colors[0], 0, led+1)
     N.show(data);
     data=null;
     let led2=led+dir;
@@ -55,14 +51,17 @@ let N={
     esp8266.neopixelWrite(N.pin, data);
   },
   ping:(colors, led=0, dir=1)=>{
-    let data=[];
-    for (var i=0; i<N.leds; i++) {
-      if(i==led){
-        data.push(...colors)
-      }else{
-        data.push(...[0,0,0]);
-      }
-    }
+    let data=new Uint8Array(N.leds*3);
+    data.fill(0);
+    data.fill(colors[0], led*3, led*3+3)
+    // let data=[];
+    // for (var i=0; i<N.leds; i++) {
+    //   if(i==led){
+    //     data.push(...colors)
+    //   }else{
+    //     data.push(...[0,0,0]);
+    //   }
+    // }
     N.show(data);
     data=null;
     let led2=led+dir;
@@ -75,10 +74,12 @@ let N={
     },time)
   },
   colorLeds(colors){
-    var data = [];
-    for (var i=0; i<N.leds; i++) {
-      data.push(...colors)
-    }
+    let data=new Uint8Array(N.leds*3);
+    data.fill(colors[0]);
+    // var data = [];
+    // for (var i=0; i<N.leds; i++) {
+    //   data.push(...colors)
+    // }
     N.write(data);
   },
 
