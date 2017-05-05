@@ -1,0 +1,31 @@
+export default L={
+  init:(pin)=>{
+    L.pin=pin
+  },
+  write:(w)=>{
+    digitalWrite(L.pin,w);
+  },
+  reset:()=>{
+    if(L.i){
+      clearInterval(L.i);
+      L.i=undefined;
+    }
+  },
+  turn:(s)=>{
+    L.reset()
+    L.write(!s);
+  },
+  blink:(times,t=500)=>{
+    L.reset();
+    L.ledOn=false;
+    L.times=0;
+    L.i=setInterval(()=>{
+      L.write(L.ledOn);
+      L.ledOn=!L.ledOn;
+      L.times=L.times+1;
+      if(L.times==times*2){
+        L.reset()
+      }
+    },t)
+  }
+}
