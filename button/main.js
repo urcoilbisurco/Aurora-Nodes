@@ -18,6 +18,7 @@ const main = ()=>{
       //mqtt.subscribe(topic+"/update");
       setWatch(event =>
         console.log(`button pushed: ${ JSON.stringify(event) }`)
+        mqtt.publish(topic+"/update", JSON.stringify({time:new Date()}))
       , D5, { repeat: true, edge: 'falling', debounce: 50 });
     });
     mqtt.on("message", (m) => {
